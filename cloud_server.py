@@ -36,7 +36,8 @@ def process_frame():
 
     try:
         with tempfile.NamedTemporaryFile(
-            suffix=suffix, delete=False
+            suffix=suffix,
+            delete=False
         ) as temp_file:
             uploaded_file.save(temp_file)
             temp_path = temp_file.name
@@ -53,7 +54,7 @@ def process_frame():
         app.logger.exception("Image processing failed")
         return jsonify({
             "status": "ERROR",
-            "reason": "Image processing failed. Check the server logs."
+            "reason": "Image processing failed. Check server logs."
         }), 500
 
     finally:
@@ -64,3 +65,4 @@ def process_frame():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+```
