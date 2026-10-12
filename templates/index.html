@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Wildlife Command Center 3D Pro</title>
+    <style>
+        :root {
+            --bg-dark: #030712;
+            --panel-glass: rgba(15, 23, 42, 0.70);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-cyan: #38bdf8;
+            --accent-purple: #c084fc;
+            --pass-color: #10b981;
+            --pass-glow: rgba(16, 185, 129, 0.35);
+            --blur-color: #f43f5e;
+            --blur-glow: rgba(244, 63, 94, 0.35);
+            --dup-color: #fbbf24;
+            --dup-glow: rgba(251, 191, 36, 0.35);
+            --blank-color: #a855f7;
+            --blank-glow: rgba(168, 85, 247, 0.35);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 30px;
+        }
+
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1550px;
+            margin: 0 auto;
+        }
+
+        /* Command Bar Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 22px 35px;
+            margin-bottom: 35px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .brand-text h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f8fafc, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.8px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--pass-color);
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--pass-color);
+            box-shadow: 0 0 20px var(--pass-glow);
+        }
+
+        .pulse-node {
+            width: 10px;
+            height: 10px;
+            background-color: var(--pass-color);
+            border-radius: 50%;
+            animation: pulse3d 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse3d {
+            0% { transform: scale(0.8); opacity: 0.6; }
+            50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 15px var(--pass-color); }
+            100% { transform: scale(0.8); opacity: 0.6; }
+        }
+
+        /* 3D KPI Interactive Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 22px;
+            perspective: 1200px;
+            margin-bottom: 40px;
+        }
+
+        .kpi-card-3d {
+            background: var(--panel-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 25px;
+            transform-style: preserve-3d;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card-3d:hover {
+            transform: translateY(-8px) rotateX(8deg) rotateY(-4deg);
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.25);
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .kpi-val {
+            font-size: 38px;
+            font-weight: 900;
+            margin-top: 10px;
+            letter-spacing: -1px;
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Glassmorphism Data Table */
+        .section-header {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 18px;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-glass {
+            background: var(--panel-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            margin-bottom: 45px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: rgba(3, 7, 18, 0.85);
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 18px 25px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        td {
+            padding: 18px 25px;
+            border-bottom: 1px solid var(--panel-border);
+            transition: background 0.2s ease;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+        .pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .pill-pass { background: rgba(16, 185, 129, 0.15); color: var(--pass-color); border: 1px solid var(--pass-color); box-shadow: 0 0 12px var(--pass-glow); }
+        .pill-blur { background: rgba(244, 63, 94, 0.15); color: var(--blur-color); border: 1px solid var(--blur-color); box-shadow: 0 0 12px var(--blur-glow); }
+        .pill-dup { background: rgba(251, 191, 36, 0.15); color: var(--dup-color); border: 1px solid var(--dup-color); box-shadow: 0 0 12px var(--dup-glow); }
+        .pill-blank { background: rgba(168, 85, 247, 0.15); color: var(--blank-color); border: 1px solid var(--blank-color); box-shadow: 0 0 12px var(--blank-glow); }
+
+        /* 3D Floating Gallery Grid */
+        .gallery-3d-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 25px;
+            perspective: 1200px;
+        }
+
+        .card-image-3d {
+            background: var(--panel-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+        }
+
+        .card-image-3d:hover {
+            transform: translateY(-12px) scale(1.02) rotateX(8deg);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.3);
+        }
+
+        .card-image-3d img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+
+        .card-image-3d:hover img {
+            transform: scale(1.08);
+        }
+
+        .card-caption {
+            padding: 16px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            text-align: center;
+            background: rgba(3, 7, 18, 0.8);
+            border-top: 1px solid var(--panel-border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .empty-gallery-state {
+            grid-column: 1 / -1;
+            padding: 60px;
+            text-align: center;
+            background: var(--panel-glass);
+            border: 1px dashed var(--panel-border);
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Lightbox Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-card {
+            background: var(--panel-glass);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 25px;
+            max-width: 800px;
+            width: 90%;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        .modal-card img {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 16px;
+            object-fit: contain;
+            margin-bottom: 15px;
+        }
+
+        .modal-close-btn {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--blur-color);
+            border: 1px solid var(--blur-color);
+            padding: 8px 22px;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ambient Particles Canvas -->
+<canvas id="particle-canvas"></canvas>
+
+<div class="container">
+    <header>
+        <div class="brand">
+            <div class="brand-icon">🐾</div>
+            <div class="brand-text">
+                <h1>Edge Wildlife Command Center</h1>
+                <p>AUTONOMOUS EDGE MONITORING PIPELINE</p>
+            </div>
+        </div>
+        <div class="status-pill">
+            <span class="pulse-node"></span>
+            <span>Live Sync Active</span>
+        </div>
+    </header>
+
+    <!-- 3D KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card-3d">
+            <div class="kpi-label">Total Evaluated</div>
+            <div class="kpi-val" id="stat-total" style="color: var(--accent-cyan);">0</div>
+        </div>
+        <div class="kpi-card-3d">
+            <div class="kpi-label">Passed (Transmitted)</div>
+            <div class="kpi-val" id="stat-passed" style="color: var(--pass-color);">0</div>
+        </div>
+        <div class="kpi-card-3d">
+            <div class="kpi-label">Rejected (Blur)</div>
+            <div class="kpi-val" id="stat-blur" style="color: var(--blur-color);">0</div>
+        </div>
+        <div class="kpi-card-3d">
+            <div class="kpi-label">Rejected (Duplicates)</div>
+            <div class="kpi-val" id="stat-dup" style="color: var(--dup-color);">0</div>
+        </div>
+        <div class="kpi-card-3d">
+            <div class="kpi-label">Rejected (Blank Forest)</div>
+            <div class="kpi-val" id="stat-blank" style="color: var(--blank-color);">0</div>
+        </div>
+    </div>
+
+    <!-- Live Decision Stream Table -->
+    <div class="section-header">📊 Edge Decision Stream</div>
+    <div class="table-glass">
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Sharpness Score</th>
+                    <th>Decision Status</th>
+                    <th>Filter Diagnostics</th>
+                </tr>
+            </thead>
+            <tbody id="logs-body">
+                <!-- Dynamically populated via JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3D Cloud Storage Gallery -->
+    <div class="section-header">🖼 Transmitted Cloud Storage</div>
+    <div id="image-gallery" class="gallery-3d-grid">
+        <!-- Dynamically populated via JS -->
+    </div>
+</div>
+
+<!-- Lightbox Modal -->
+<div class="modal-overlay" id="imageModal">
+    <div class="modal-card">
+        <img id="modalImg" src="" alt="Preview">
+        <h3 id="modalTitle" style="color: var(--text-main);"></h3>
+        <button class="modal-close-btn" onclick="closeModal()">Close Preview</button>
+    </div>
+</div>
+
+<script>
+    // Canvas Particle Animation
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const particles = Array.from({ length: 45 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 2 + 0.5,
+        dx: (Math.random() - 0.5) * 0.4,
+        dy: (Math.random() - 0.5) * 0.4,
+        alpha: Math.random() * 0.5 + 0.1
+    }));
+
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.x += p.dx;
+            p.y += p.dy;
+
+            if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+            if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
+            ctx.fill();
+        });
+        requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // Modal Control Functions
+    function openModal(imgSrc, title) {
+        document.getElementById('modalImg').src = imgSrc;
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').style.display = 'none';
+    }
+
+    // Data Sync Loop
+    async function updateDashboard() {
+        try {
+            const resLogs = await fetch('/logs');
+            const logs = await resLogs.json();
+            
+            const logTbody = document.getElementById('logs-body');
+            logTbody.innerHTML = '';
+
+            let countPassed = 0, countBlur = 0, countDup = 0, countBlank = 0;
+
+            logs.forEach(log => {
+                const row = document.createElement('tr');
+                let pillClass = 'pill-pass';
+                let iconSymbol = '✓';
+
+                if (log.status === 'PASSED') {
+                    countPassed++;
+                    pillClass = 'pill-pass';
+                    iconSymbol = '✓';
+                } else if (log.reason.includes('Blur')) {
+                    countBlur++;
+                    pillClass = 'pill-blur';
+                    iconSymbol = '✕';
+                } else if (log.reason.includes('Duplicate')) {
+                    countDup++;
+                    pillClass = 'pill-dup';
+                    iconSymbol = '⚠';
+                } else if (log.reason.includes('Blank Forest')) {
+                    countBlank++;
+                    pillClass = 'pill-blank';
+                    iconSymbol = '🚫';
+                }
+
+                row.innerHTML = `
+                    <td><strong>${log.filename}</strong></td>
+                    <td style="font-family: monospace; color: var(--accent-cyan); font-weight: 800;">${log.blur_score}</td>
+                    <td><span class="pill-badge ${pillClass}">${iconSymbol} ${log.status}</span></td>
+                    <td style="color: var(--text-muted);">${log.reason}</td>
+                `;
+                logTbody.appendChild(row);
+            });
+
+            document.getElementById('stat-total').innerText = logs.length;
+            document.getElementById('stat-passed').innerText = countPassed;
+            document.getElementById('stat-blur').innerText = countBlur;
+            document.getElementById('stat-dup').innerText = countDup;
+            document.getElementById('stat-blank').innerText = countBlank;
+
+        } catch(e) { console.error("Error updating logs:", e); }
+
+        try {
+            const resImages = await fetch('/images');
+            const images = await resImages.json();
+            const gallery = document.getElementById('image-gallery');
+            gallery.innerHTML = '';
+
+            if (images.length === 0) {
+                gallery.innerHTML = '<div class="empty-gallery-state">No images transmitted to cloud storage.</div>';
+            } else {
+                images.forEach(imgName => {
+                    const card = document.createElement('div');
+                    card.className = 'card-image-3d';
+                    const imgSrc = `/cloud_storage/${imgName}`;
+                    card.onclick = () => openModal(imgSrc, imgName);
+                    card.innerHTML = `
+                        <img src="${imgSrc}" alt="${imgName}" loading="lazy">
+                        <div class="card-caption">${imgName}</div>
+                    `;
+                    gallery.appendChild(card);
+                });
+            }
+        } catch(e) { console.error("Error updating gallery:", e); }
+    }
+
+    setInterval(updateDashboard, 2500);
+    updateDashboard();
+</script>
+</body>
+</html>
