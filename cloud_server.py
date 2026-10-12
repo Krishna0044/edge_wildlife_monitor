@@ -1,40 +1,66 @@
-﻿from flask import Flask, render_template, request, jsonify
+
+import os
+import tempfile
+
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from edge_processor import EdgeProcessor
 
 app = Flask(__name__, template_folder="templates")
-CORS(app)  # Enables cross-origin requests from web browsers
+CORS(app)
 
-# Initialize edge processor
-processor = EdgeProcessor(blur_threshold=100.0, phash_threshold=5, entropy_threshold=1.5)
+processor = EdgeProcessor(
+    blur_threshold=100.0,
+    phash_threshold=5,
+    entropy_threshold=1.5
+)
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/process", methods=["POST"])
 def process_frame():
     if "file" not in request.files:
-        return jsonify({"status": "ERROR", "reason": "No image file provided."}), 400
+        return jsonify({
+            "status": "ERROR",
+            "reason": "No image file provided."
+        }), 400
 
-    file = request.files["file"]
-    species_name = request.form.get("species_name", "Bengal Tiger")
-    blur_threshold = float(request.form.get("blur_threshold", 100))
+    uploaded_file = request.files["file"]
 
-    file_bytes = file.read()
+    suffix = os.path.splitext(uploaded_file.filename or "")[1] or ".jpg"
+    temp_path = None
 
-    status, blur_score, reason = processor.process_frame(
-        file_bytes=file_bytes,
-        target_species=species_name,
-        blur_threshold=blur_threshold
-    )
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=suffix, delete=False
+        ) as temp_file:
+            uploaded_file.save(temp_file)
+            temp_path = temp_file.name
 
-    return jsonify({
-        "status": status,
-        "blur_score": blur_score,
-        "reason": reason
-    }), 200
+        status, blur_score, reason = processor.process_frame(temp_path)
+
+        return jsonify({
+            "status": status,
+            "blur_score": blur_score,
+            "reason": reason
+        }), 200
+
+    except Exception:
+        app.logger.exception("Image processing failed")
+        return jsonify({
+            "status": "ERROR",
+            "reason": "Image processing failed. Check the server logs."
+        }), 500
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
 
 if __name__ == "__main__":
-    print("Serving Flask app at http://127.0.0.1:5000")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
